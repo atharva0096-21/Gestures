@@ -1,0 +1,57 @@
+import cv2
+import mediapipe as mp
+import pyautogui  # For simulating keyboard actions
+
+# Initialize MediaPipe Hands
+mp_hands = mp.solutions.hands
+hands = mp_hands.Hands(min_detection_confidence=0.7, min_tracking_confidence=0.7)
+mp_draw = mp.solutions.drawing_utils
+
+# Start video capture
+cap = cv2.VideoCapture(0)
+
+# Variables to track swipe direction
+prev_x = None
+
+while cap.isOpened():
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    # Flip the frame horizontally for a mirror effect
+    frame = cv2.flip(frame, 1)
+
+    # Convert BGR to RGB
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    results = hands.process(frame_rgb)
+
+    # Draw landmarks and detect gestures
+    if results.multi_hand_landmarks:
+        for hand_landmarks in results.multi_hand_landmarks:
+            mp_draw.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+
+            # Extract x-coordinate of the wrist (landmark 0)
+            wrist_x = hand_landmarks.landmark[0].x  # Normalized value (0 to 1)
+            frame_width = frame.shape[1]
+            wrist_x_px = int(wrist_x * frame_width)  # Convert to pixel coordinates
+
+            # Detect swipe direction
+            if prev_x is not None:
+                if wrist_x_px - prev_x > 40:  # Swipe right
+                    print("Swipe Right Detected")
+                    pyautogui.press("right")
+                elif prev_x - wrist_x_px > 40:  # Swipe left
+                    print("Swipe Left Detected")
+                    pyautogui.press("left")
+
+            prev_x = wrist_x_px
+
+    # Display the frame
+    cv2.imshow("Swipe Gesture Detection", frame)
+
+    # Press 'q' to exit
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
